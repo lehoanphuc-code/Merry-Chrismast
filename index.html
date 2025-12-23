@@ -60,7 +60,7 @@
 
         /* Start Screen */
         #start-screen {
-            background: radial-gradient(circle at center, rgba(20,20,40,0.9), #000);
+            background: radial-gradient(circle at center, rgba(20,20,40,0.95), #000);
             pointer-events: auto;
             opacity: 1;
         }
@@ -72,11 +72,12 @@
 
         h1 {
             font-family: 'Great Vibes', cursive;
-            font-size: 4rem;
+            font-size: 4.5rem;
             color: #d4af37; /* Gold */
             text-shadow: 0 0 20px rgba(212, 175, 55, 0.5);
             margin-bottom: 20px;
             padding: 0 20px;
+            line-height: 1.2;
         }
 
         p {
@@ -100,6 +101,8 @@
             text-transform: uppercase;
             letter-spacing: 2px;
             font-family: 'Cinzel', serif;
+            position: relative;
+            overflow: hidden;
         }
 
         .btn:hover {
@@ -111,7 +114,7 @@
         /* End Screen */
         #end-screen {
             opacity: 0;
-            background: radial-gradient(circle at center, rgba(50,0,0,0.3), transparent);
+            background: radial-gradient(circle at center, rgba(50,0,0,0.4), transparent);
         }
 
         #end-screen.visible {
@@ -121,31 +124,34 @@
 
         .final-msg {
             font-family: 'Great Vibes', cursive;
-            font-size: 5rem;
+            font-size: 6rem;
             color: #ff3333;
             text-shadow: 0 0 30px rgba(255, 50, 50, 0.8), 0 0 60px rgba(255, 255, 255, 0.4);
             animation: float 3s ease-in-out infinite;
             padding: 0 20px;
+            line-height: 1.1;
         }
 
         .sub-msg {
             font-size: 1.5rem;
-            margin-top: 20px;
+            margin-top: 30px;
             color: #fff;
-            opacity: 0.8;
+            opacity: 0.9;
             text-shadow: 0 0 10px rgba(255,255,255,0.5);
+            letter-spacing: 1px;
         }
 
         @keyframes float {
             0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-10px); }
+            50% { transform: translateY(-15px); }
         }
 
         /* Mobile Adjustments */
         @media (max-width: 768px) {
-            h1 { font-size: 3rem; }
-            .final-msg { font-size: 3.5rem; }
-            .sub-msg { font-size: 1.2rem; }
+            h1 { font-size: 3.5rem; }
+            .final-msg { font-size: 4rem; }
+            .sub-msg { font-size: 1.1rem; }
+            .btn { padding: 12px 30px; font-size: 1rem; }
         }
     </style>
 </head>
@@ -158,7 +164,7 @@
     <div id="start-screen" class="overlay">
         <h1>A Christmas Story</h1>
         <p>A cinematic journey through memories.<br>Please turn on your sound and tap below to begin.</p>
-        <button class="btn" id="start-btn">Start Journey</button>
+        <button class="btn" id="start-btn">Start Journey 🎄</button>
     </div>
 
     <!-- End Screen -->
@@ -170,18 +176,32 @@
     <script>
         // --- CONFIGURATION ---
         const STORY_CONFIG = {
-            // Replace these URLs with your local paths e.g., './assets/images/1.jpg'
-            images: [
-                'https://picsum.photos/id/1011/600/800', // Winter canoe
-                'https://picsum.photos/id/1015/600/800', // River valley
-                'https://picsum.photos/id/1016/600/800', // Canyon
-                'https://picsum.photos/id/1018/600/800', // Nature
-                'https://picsum.photos/id/1022/600/800', // Dark forest
-                'https://picsum.photos/id/1039/600/800', // Waterfall
-                'https://picsum.photos/id/1043/600/800'  // Colors
-            ],
+             1. IMAGES:
+             //To use your local images, uncomment the lines below and ensure files exist in assets/images/
+             images: [
+                 './assets/images/1.jpg',
+                 './assets/images/2.jpg',
+                 './assets/images/3.jpg',
+                 './assets/images/4.jpg',
+                 './assets/images/5.jpg'
+             ],
+            
+            // Currently using placeholders for demonstration:
+            //images: [
+            //    'https://picsum.photos/id/1011/600/800', // Winter canoe
+            //    'https://picsum.photos/id/1015/600/800', // River valley
+            //    'https://picsum.photos/id/1016/600/800', // Canyon
+            //    'https://picsum.photos/id/1018/600/800', // Nature
+            //    'https://picsum.photos/id/1022/600/800', // Dark forest
+            //    'https://picsum.photos/id/1039/600/800', // Waterfall
+            //    'https://picsum.photos/id/1043/600/800'  // Colors
+            //],
+            
             snowCount: 1500,
-            musicUrl: '' // Optional: Add a path to an mp3 here
+            
+            // 2. AUDIO:
+            // Path to your local audio file
+            musicUrl: './assets/audio/feliz_navidad.mp3'
         };
 
         // --- GLOBAL VARIABLES ---
@@ -192,8 +212,11 @@
         let targetMouse = new THREE.Vector2();
         let windowHalfX = window.innerWidth / 2;
         let windowHalfY = window.innerHeight / 2;
+        
+        // State
         let isPlaying = false;
-        const clock = new THREE.Clock();
+        let bgMusic = null;
+        let mainTimeline = null;
 
         // --- INITIALIZATION ---
         function init() {
@@ -208,7 +231,10 @@
             // 3. Renderer
             renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // Cap at 2x for performance
+            
+            // PERFORMANCE CAP: Limit pixel ratio to 1.5 for mobile performance
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5)); 
+            
             document.getElementById('canvas-container').appendChild(renderer.domElement);
 
             // 4. Lighting (Subtle)
@@ -229,10 +255,26 @@
             document.addEventListener('mousemove', onDocumentMouseMove, false);
             document.addEventListener('touchmove', onDocumentTouchMove, { passive: false });
             
+            // Smart Pausing (Visibility API)
+            document.addEventListener("visibilitychange", handleVisibilityChange);
+            
             document.getElementById('start-btn').addEventListener('click', startStory);
 
             // Start Loop
             animate();
+        }
+
+        // --- VISIBILITY HANDLER ---
+        function handleVisibilityChange() {
+            if (document.hidden) {
+                // Pause everything to save battery
+                if (bgMusic && isPlaying) bgMusic.pause();
+                if (mainTimeline) mainTimeline.pause();
+            } else {
+                // Resume
+                if (bgMusic && isPlaying) bgMusic.play();
+                if (mainTimeline) mainTimeline.play();
+            }
         }
 
         // --- SNOW SYSTEM ---
@@ -284,6 +326,8 @@
                 this.timeline = gsap.timeline({
                     onComplete: showEnding
                 });
+                // Expose timeline globally for pausing
+                mainTimeline = this.timeline;
             }
 
             buildSequence() {
@@ -384,10 +428,14 @@
             const imgMgr = new ImageManager(STORY_CONFIG.images);
             imgMgr.buildSequence();
 
-            // Optional: Play Audio
+            // Play Audio
             if(STORY_CONFIG.musicUrl) {
-                const audio = new Audio(STORY_CONFIG.musicUrl);
-                audio.play().catch(e => console.log("Audio autoplay blocked"));
+                bgMusic = new Audio(STORY_CONFIG.musicUrl);
+                bgMusic.loop = true;
+                bgMusic.volume = 0.6;
+                bgMusic.play().catch(e => {
+                    console.warn("Audio autoplay blocked or file missing. User interaction required.", e);
+                });
             }
         }
 
